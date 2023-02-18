@@ -1,0 +1,71 @@
+<div class="c-interface">
+	<div class="x-view">
+		<slot name="view" />
+	</div>
+	<div class="x-code">
+		<slot name="code" />
+	</div>
+	<div class="x-edit">
+		<slot name="edit" />
+	</div>
+</div>
+<style is:global>
+.c-interface {
+	display: grid;
+
+	block-size: 100dvh;
+	gap: 1em;
+	padding: 1em;
+}
+
+@container (max-width: 719px) {
+	.c-interface {
+		grid: 1fr auto auto / 1fr;
+		grid-template-areas:
+					"view"
+					"edit"
+					"code"
+		;
+	}
+}
+
+@container (min-width: 720px) {
+	.c-interface {
+		grid: 1fr 10rem / 1fr minmax(10rem, 20rem);
+		grid-template-areas:
+					"view edit"
+					"code edit"
+		;
+	}
+}
+
+.x-view {
+	grid-area: view;
+}
+
+.x-code {
+	grid-area: code;
+}
+
+.x-edit {
+	grid-area: edit;
+	overflow-y: auto;
+}
+
+.x-view {
+	display: grid;
+
+	grid: 1fr / 1fr;
+
+	box-shadow: hsl(0 0% 90%) 0 0 0 1px inset;
+	border-radius: .25em;
+}
+
+.x-code {
+	overflow: hidden;
+
+	background-color: hsl(0 0% 99%);
+	box-shadow: hsl(0 0% 90%) 0 0 0 1px inset;
+	border-radius: .25em;
+}
+</style>

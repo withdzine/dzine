@@ -1,0 +1,451 @@
+---
+import * as CEM from 'src:utils/Manifest'
+import * as Flow from '@astropub/flow'
+import { getStaticPathsFromManifest } from 'src:utils/getStaticPaths.js'
+import Interface from 'src:components/Interface/Interface.astro'
+import 'src:style/global.css'
+import Control from 'src:components/Control/Control.astro'
+import Field from 'src:components/Field/Field.astro'
+
+export function getStaticPaths() {
+	return getStaticPathsFromManifest()
+}
+
+const {
+	...props
+} = Astro.props as CEM.ClassSource
+
+const filterProperty = (member: any) => member.kind === 'field' && member.name !== 'el' && !/^handle[A-Z]/.test(member.name) && !/^_/.test(member.name)
+
+const asString = (value: any) => value == null ? '' : String(value)
+const filterType = (type: string) => type !== '' && type !== 'undefined'
+const changeType = (type: string) => /^[A-Z]/.test(type) ? 'string' : type
+const splitTypes = (types: string) => asString(types).trim().split(/\s*\|\s*/).filter(filterType).map(changeType)
+
+const parseString = (string: string) => string.replace(/^(['"])(.*)\1$/, '$2')
+
+const getType = (types: string) => splitTypes(types).reduce(
+	(gottenType, type) => {
+		switch (type) {
+			case 'boolean':
+			case 'number':
+			case 'string': {
+				gottenType.type = type
+			} break
+			default: {
+				gottenType.enum.push(parseString(type))
+			} break
+		}
+
+		return gottenType
+	},
+	{
+		type: 'string',
+		enum: [] as string[],
+	}
+)
+
+const getTypeFromComponentProperty = (componentProperty: any) => (
+	'type' in componentProperty
+		? getType(
+			typeof componentProperty.type === 'string'
+				? componentProperty.type
+			: componentProperty.type.text
+		)
+	: {
+		type: 'string',
+		enums: [],
+	}
+)
+
+const componentPropertyArray = props.members?.filter(filterProperty) || []
+const componentAttributeArray = (props.attributes! || [])
+---
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width" />
+	<title>{props.tagName}</title>
+</head>
+<Interface>
+	<Fragment slot="view">
+		<iframe class="frame" src="./iframe/" />
+	</Fragment>
+	<Fragment slot="edit">
+		<Flow.When matches={componentAttributeArray.length > 0}>
+			<section class="c-fieldset -attributes">
+				<header class="x-header">
+					<h3 class="x-heading">Attributes</h3>
+				</header>
+				<section class="x-fields">
+					<Flow.For of={componentAttributeArray}>{(componentAttribute) => {
+						const type = getTypeFromComponentProperty(componentAttribute)
+
+						return (
+							<section class="x-field">
+								<label class="x-label">{componentAttribute.name}</label>
+								<Control class="x-control" data-scope="attribute" data-tag={props.tagName} data-name={componentAttribute.name} {...type} />
+							</section>
+						)
+					}}</Flow.For>
+				</section>
+			</section>
+		</Flow.When>
+		<Flow.When matches={componentAttributeArray.length > 0}>
+			<section class="c-fieldset -attributes">
+				<header class="x-header">
+					<h3 class="x-heading">Properties</h3>
+				</header>
+				<section class="x-fields">
+					<Flow.For of={componentPropertyArray}>{(componentProperty) => {
+						const type = getTypeFromComponentProperty(componentProperty)
+
+						return (
+							<section class="x-field">
+								<label class="x-label">{componentProperty.name}</label>
+								<Control class="x-control" data-scope="property" data-tag={props.tagName} data-name={componentProperty.name} {...type} />
+							</section>
+						)
+					}}</Flow.For>
+				</section>
+			</section>
+		</Flow.When>
+		<section class="c-fieldset -states">
+			<header class="x-header">
+				<h3 class="x-heading">Forced CSS State</h3>
+			</header>
+			<section class="x-fields">
+				<Field scope="state" label=":active" name="active" tag={props.tagName!} type="boolean" />
+				<Field scope="state" label=":hover" name="hover" tag={props.tagName!} type="boolean" />
+				<Field scope="state" label=":focus-visible" name="focus-visible" tag={props.tagName!} type="boolean" />
+				<Field scope="state" label=":focus-within" name="focus-within" tag={props.tagName!} type="boolean" />
+			</section>
+		</section>
+		<section class="c-fieldset -tokens">
+			<header class="x-header">
+				<h3 class="x-heading">CSS Tokens</h3>
+			</header>
+			<ul class="c-keywords" data-name="keywords" />
+		</section>
+	</Fragment>
+	<Fragment slot="code">
+		<pre class="c-code"><code class="x-html" data-tag={props.tagName}></code></pre>
+	</Fragment>
+</Interface>
+<script>
+globalThis.addEventListener('message', ({ data }) => {
+	const { stringify } = JSON
+
+	switch (data.action) {
+		case 'NOTIFY_ATTRIBUTE': {
+			const [ param ] = data.params
+			const controlElement = document.querySelector<HTMLInputElement>(`[data-tag=${stringify(param.tag)}][data-scope="attribute"][data-name=${stringify(param.name)}]`)!
+
+			if (!controlElement) break
+
+			switch (controlElement.dataset.type) {
+				case 'boolean': {
+					controlElement.checked = param.value !== null
+				} break
+
+				case 'number': {
+					if (String(param.value) === controlElement.textContent) break
+
+					controlElement.value = String(param.value)
+				} break
+
+				case 'string': {
+					if (param.value === controlElement.textContent) break
+
+					controlElement.value = param.value
+				} break
+			}
+		} break
+
+		case 'NOTIFY_PROPERTY': {
+			const [ param ] = data.params
+			const query = `[data-scope="property"][data-tag=${stringify(param.tag)}][data-name=${stringify(param.name)}]`
+
+			for (const controlElement of document.querySelectorAll<HTMLInputElement>(query)) {
+				switch (controlElement.dataset.type) {
+					case 'boolean': {
+						controlElement.checked = param.value
+					} break
+
+					case 'number': {
+						if (String(param.value) === controlElement.textContent) break
+
+						controlElement.textContent = String(param.value)
+					} break
+
+					case 'string': {
+						if (param.value === controlElement.textContent) break
+
+						controlElement.textContent = param.value
+					} break
+				}
+			}
+		} break
+	}
+})
+
+{
+	const query = ':is([data-scope="property"],[data-scope="attribute"])[data-tag][data-type][data-name]'
+	for (const controlElement of document.querySelectorAll<HTMLInputElement>(query)) {
+		let { name, scope, tag, type } = controlElement.dataset
+
+		let action = scope === 'property' ? 'SET_PROPERTY' : 'SET_ATTRIBUTE'
+
+		controlElement.addEventListener('input', () => {
+			const value = controlElement.type === 'checkbox' ? controlElement.checked : controlElement.value
+
+			globalThis.postMessage({
+				action,
+				params: [
+					{
+						tag,
+						type,
+						name,
+						value,
+					}
+				],
+			})
+		})
+	}
+}
+
+{
+	const query = '.c-code .x-html'
+	for (const codeElement of document.querySelectorAll<HTMLElement>(query)) {
+		let { tag } = codeElement.dataset
+
+		let html = {
+			opening: `<${tag}`,
+			attributes: {},
+			closing: `</${tag}>`,
+		}
+
+		let setHTML = () => {
+			codeElement.textContent = (
+				html.opening +
+				Object.entries(html.attributes).reduce(
+					(attrs, [ name, value ]) => {
+						if (value === null) return attrs
+						else if (value === '') attrs += ' ' + name
+						else attrs += ' ' + name + '=' + JSON.stringify(value)
+
+						return attrs
+					},
+					''
+				) +
+				`>` +
+				html.closing
+			)
+		}
+
+		setHTML()
+
+		globalThis.addEventListener('message', ({ data }) => {
+			data = Object(data)
+
+			switch (data.action) {
+				case 'NOTIFY_ATTRIBUTE': {
+					const [ param ] = data.params
+					html.attributes[param.name] = param.value
+					setHTML()
+				} break
+			}
+		})
+	}
+}
+</script>
+<script>
+{
+	const query = '[data-scope="state"][data-tag][data-type][data-name]'
+	for (const controlElement of document.querySelectorAll<HTMLInputElement>(query)) {
+		let { name, tag } = controlElement.dataset
+
+		let action = 'SET_CSS_STATE'
+
+		controlElement.addEventListener('input', () => {
+			const value = controlElement.checked
+
+			globalThis.postMessage({
+				action,
+				params: [
+					{
+						tag,
+						name,
+						value,
+					}
+				],
+			})
+
+			globalThis.postMessage({
+				action: 'GET_TOKENS',
+				params: [],
+			})
+		})
+	}
+}
+
+{
+	const query = '.c-code .x-html'
+	for (const codeElement of document.querySelectorAll<HTMLElement>(query)) {
+		let { tag } = codeElement.dataset
+
+		let html = {
+			opening: `<${tag}`,
+			attributes: {},
+			closing: `</${tag}>`,
+		}
+
+		let setHTML = () => {
+			codeElement.textContent = (
+				html.opening +
+				Object.entries(html.attributes).reduce(
+					(attrs, [ name, value ]) => {
+						if (value === null) return attrs
+						else if (value === '') attrs += ' ' + name
+						else attrs += ' ' + name + '=' + JSON.stringify(value)
+
+						return attrs
+					},
+					''
+				) +
+				`>` +
+				html.closing
+			)
+		}
+
+		setHTML()
+
+		globalThis.addEventListener('message', ({ data }) => {
+			data = Object(data)
+
+			switch (data.action) {
+				case 'NOTIFY_ATTRIBUTE': {
+					const [ param ] = data.params
+					html.attributes[param.name] = param.value
+					setHTML()
+				} break
+			}
+		})
+	}
+}
+</script>
+<script>
+{
+	const keywordsElement = document.querySelector('[data-name="keywords"]')!
+
+	const createLi = (textContent: string) => {
+		const liElement = document.createElement('li')
+		const codeElement = document.createElement('code')
+
+		codeElement.textContent = textContent
+
+		liElement.append(codeElement)
+
+		return liElement
+	}
+
+	globalThis.addEventListener('message', ({ data }) => {
+		data = Object(data)
+
+		switch (data.action) {
+			case 'LIST_TOKENS': {
+				const [ param ] = data.params
+
+				const fragment = new DocumentFragment()
+
+				for (const name of param.value) {
+					fragment.append(
+						createLi(name)
+					)
+				}
+
+				keywordsElement.replaceChildren(fragment)
+			} break
+		}
+	})
+}
+</script>
+<style is:global>
+.c-code {
+	/* Layout */
+	margin-block: 0;
+
+	/* Appearance */
+	color: transparent;
+	caret-color: hsl(0 0% 0%);
+}
+
+.c-code > code {
+	display: block;
+
+	/* Layout */
+	padding-block: 1em;
+	padding-inline: 1.5em;
+
+	/* Text */
+	color: hsl(0 0% 0%);
+}
+</style>
+<style is:global>
+.c-fieldset .x-header {
+	display: flex;
+
+	/* Appearance */
+	box-shadow: hsl(0deg 0% 90%) 0 -1px 0 0 inset;
+}
+
+.c-fieldset .x-heading {
+	/* Layout */
+	padding: 1em;
+	margin: 0;
+
+	/* Text */
+	font: 300 .875rem/calc(20 / 14) system-ui;
+
+	/* Appearance */
+	box-shadow: 0 -2px 0 0 inset;
+}
+
+.c-fieldset .x-fields {
+	display: grid;
+
+	/* Layout */
+	gap: .5em;
+	grid: 1fr / 6rem 1fr;
+	justify-items: start;
+	padding-block: 1em;
+	padding-inline: 0.5em;
+
+	/* Text */
+	font: 87.5%/calc(20 / 14) system-ui;
+}
+
+.c-fieldset .x-field {
+	display: contents;
+}
+
+.c-fieldset .x-label {
+	/* Text */
+	font-weight: 300;
+}
+</style>
+<style is:global>
+.c-keywords {
+	display: inline-block;
+
+	margin-block: 0;
+	padding-inline-start: 0;
+	padding-block: 1rem;
+	list-style: none;
+
+	font: 300 0.875rem/calc(20 / 14) system-ui;
+}
+
+.c-keywords > li > code {
+	white-space: break-spaces;
+}
+</style>

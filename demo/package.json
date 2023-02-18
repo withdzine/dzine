@@ -1,0 +1,17 @@
+{
+	"private": true,
+	"name": "dzine.demo",
+	"type": "module",
+	"scripts": {
+		"start": "astro dev",
+		"build": "astro build",
+		"serve": "astro preview"
+	},
+	"dependencies": {
+		"@astropub/flow": "0.3.6",
+		"@astropub/md": "0.1.5",
+		"astro": "2.0.13",
+		"custom-elements-manifest": "2.0.0",
+		"typescript": "5.0.0-beta"
+	}
+}

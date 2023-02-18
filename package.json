@@ -1,0 +1,16 @@
+{
+	"private": true,
+	"name": "dzine.root",
+	"type": "module",
+	"workspaces": [
+		"demo"
+	],
+	"scripts": {
+		"start": "npm run start -w demo",
+		"build": "npm run build -w demo",
+		"serve": "npm run serve -w demo"
+	},
+	"dependencies": {
+		"types-object": "0.3.0"
+	}
+}

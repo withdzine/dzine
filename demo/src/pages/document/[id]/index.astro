@@ -1,0 +1,47 @@
+---
+import type * as AstroType from 'astro'
+import * as CEM from 'src:utils/Manifest'
+import * as Flow from '@astropub/flow'
+import * as Markdown from '@astropub/md'
+
+export async function getStaticPaths(): AstroType.GetStaticPathsResult {
+	const manifest = new CEM.Manifest(await import('src:data/custom-elements.json').then(module => module.default))
+	const items: AstroType.GetStaticPathsItem[] = []
+
+	for (const klass of manifest.classes) {
+		items.push(<AstroType.GetStaticPathsItem>{
+			params: {
+				id: klass.tagName,
+			},
+			props: {
+				...klass.data
+			}
+		})
+	}
+
+	return items
+}
+
+const {
+	...props
+} = Astro.props as CEM.ClassSource
+---
+<h1>{props.name}</h1>
+<section>
+	<h2>Properties</h2>
+	<Flow.For each={CEM.getPropertiesFromClass(props)}>{(property) => (
+		<Fragment>
+			<h3>{property.name}</h3>
+			<p set:text={Markdown.markdown(property.description)} />
+		</Fragment>
+	)}</Flow.For>
+</section>
+<section>
+	<h2>Attributes</h2>
+	<Flow.For each={props.attributes}>{(attribute) => (
+		<Fragment>
+			<h3>{attribute.name}</h3>
+			<p set:text={Markdown.markdown(attribute.description)} />
+		</Fragment>
+	)}</Flow.For>
+</section>

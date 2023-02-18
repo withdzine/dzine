@@ -1,0 +1,53 @@
+---
+import * as Flow from '@astropub/flow';
+import { manifest } from 'src:utils/getStaticPaths.js'
+
+const createHrefFromTagName = (tagName: string) => `./prototype/${tagName}/`
+---
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Web Components</title>
+	</head>
+	<body>
+		<h1>Web Components</h1>
+		<Flow.When matches={manifest.classes.length > 0}>
+			<nav>
+				<ul>
+					<Flow.For each={manifest.classes.filter(klass => !/rux-icon-/.test(klass.tagName))}>{(klass) => (
+						<Fragment>
+							<li>
+								<a href={createHrefFromTagName(klass.tagName)} target="view"><code>{klass.tagName}</code></a>
+							</li>
+						</Fragment>
+					)}</Flow.For>
+				</ul>
+			</nav>
+		</Flow.When>
+	</body>
+</html>
+<style is:global>
+html {
+	font: 100%/1.5 system-ui;
+
+	/* Scrollbar Width Unit */
+	--sbh: calc(100vh - 100%);
+	--sbw: calc(100vw - 100%);
+
+	/* Viewport Width Unit */
+	--vph: calc(1vw - var(--sbh) / 100);
+	--vpw: calc(1vw - var(--sbw) / 100);
+
+	padding: 2rem;
+}
+
+h1 {
+	margin-block: 0;
+}
+
+body {
+	display: contents;
+}
+</style>

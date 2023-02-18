@@ -1,0 +1,33 @@
+---
+import * as CEM from 'src:utils/Manifest'
+import { getStaticPathsFromManifest } from 'src:utils/getStaticPaths.js'
+import iframeScript from 'src:utils/iframeScript.js?raw'
+
+export function getStaticPaths() {
+	return getStaticPathsFromManifest()
+}
+
+const {
+	name,
+	tagName,
+	slots,
+} = Astro.props as CEM.ClassSource
+
+const { stringify } = JSON
+const Tag = tagName!
+const importURL = `https://cdn.jsdelivr.net/npm/@astrouxds/astro-web-components@7.7.0/dist/components/${tagName}.js/+esm`
+const scriptText = [
+	iframeScript,
+	`import{${name}}from${stringify(importURL)}`,
+	`customElements.define(${stringify(tagName)},${name})`,
+].join(';')
+
+const hasDefaultSlot = slots && slots.some(slot => slot.name === '')
+---
+<head>
+	<link rel="stylesheet" href="/dzine/prototype.iframe.css" />
+	<script type="module" set:html={scriptText} />
+</head>
+<body class="light-theme">
+	<Tag>{hasDefaultSlot ? 'Content' : ''}</Tag>
+</body>

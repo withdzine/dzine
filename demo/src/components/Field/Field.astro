@@ -1,0 +1,16 @@
+---
+import Control from 'src:components/Control/Control.astro'
+
+const { label, scope, tag, name, ...props } = Astro.props
+
+export interface Props extends Record<string, any> {
+	label?: string
+	scope?: string
+	tag?: string
+	name?: string
+}
+---
+<section class="x-field">
+	<label class="x-label">{label}</label>
+	<Control class="x-control" data-scope={scope} data-tag={tag} data-name={name} {...props} />
+</section>

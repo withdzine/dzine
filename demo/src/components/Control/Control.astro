@@ -1,0 +1,14 @@
+---
+const {
+	type,
+	enum,
+	...attrs
+} = Astro.props
+---
+{
+	type === 'number'
+		? (<input type="number" data-type={type} {...attrs} />)
+	: type === 'boolean'
+		? (<input type="checkbox" data-type={type} {...attrs} />)
+	: (<input type="text" data-type={type} {...attrs} />)
+}
