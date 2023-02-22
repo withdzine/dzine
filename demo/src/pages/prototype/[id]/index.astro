@@ -74,25 +74,6 @@ const componentAttributeArray = (props.attributes! || [])
 		<Flow.When matches={componentAttributeArray.length > 0}>
 			<section class="c-fieldset -attributes">
 				<header class="x-header">
-					<h3 class="x-heading">Attributes</h3>
-				</header>
-				<section class="x-fields">
-					<Flow.For of={componentAttributeArray}>{(componentAttribute) => {
-						const type = getTypeFromComponentProperty(componentAttribute)
-
-						return (
-							<section class="x-field">
-								<label class="x-label">{componentAttribute.name}</label>
-								<Control class="x-control" data-scope="attribute" data-tag={props.tagName} data-name={componentAttribute.name} {...type} />
-							</section>
-						)
-					}}</Flow.For>
-				</section>
-			</section>
-		</Flow.When>
-		<Flow.When matches={componentAttributeArray.length > 0}>
-			<section class="c-fieldset -attributes">
-				<header class="x-header">
 					<h3 class="x-heading">Properties</h3>
 				</header>
 				<section class="x-fields">
@@ -109,6 +90,25 @@ const componentAttributeArray = (props.attributes! || [])
 				</section>
 			</section>
 		</Flow.When>
+		<!-- <Flow.When matches={componentAttributeArray.length > 0}>
+			<section class="c-fieldset -attributes">
+				<header class="x-header">
+					<h3 class="x-heading">Attributes</h3>
+				</header>
+				<section class="x-fields">
+					<Flow.For of={componentAttributeArray}>{(componentAttribute) => {
+						const type = getTypeFromComponentProperty(componentAttribute)
+
+						return (
+							<section class="x-field">
+								<label class="x-label">{componentAttribute.name}</label>
+								<Control class="x-control" data-scope="attribute" data-tag={props.tagName} data-name={componentAttribute.name} {...type} />
+							</section>
+						)
+					}}</Flow.For>
+				</section>
+			</section>
+		</Flow.When> -->
 		<section class="c-fieldset -states">
 			<header class="x-header">
 				<h3 class="x-heading">Forced CSS State</h3>
@@ -128,9 +128,12 @@ const componentAttributeArray = (props.attributes! || [])
 		</section>
 	</Fragment>
 	<Fragment slot="code">
-		<pre class="c-code"><code class="x-html" data-tag={props.tagName}></code></pre>
+		<code-editor data-tag={props.tagName}><pre class="c-code"><code class="x-html" data-tag={props.tagName} set:text={`<${props.tagName}></${props.tagName}>`} /></pre></code-editor>
 	</Fragment>
 </Interface>
+<script>
+import 'src:components/CodeEditor/CodeEditor.ts'
+</script>
 <script>
 globalThis.addEventListener('message', ({ data }) => {
 	const { stringify } = JSON
@@ -212,51 +215,6 @@ globalThis.addEventListener('message', ({ data }) => {
 		})
 	}
 }
-
-{
-	const query = '.c-code .x-html'
-	for (const codeElement of document.querySelectorAll<HTMLElement>(query)) {
-		let { tag } = codeElement.dataset
-
-		let html = {
-			opening: `<${tag}`,
-			attributes: {},
-			closing: `</${tag}>`,
-		}
-
-		let setHTML = () => {
-			codeElement.textContent = (
-				html.opening +
-				Object.entries(html.attributes).reduce(
-					(attrs, [ name, value ]) => {
-						if (value === null) return attrs
-						else if (value === '') attrs += ' ' + name
-						else attrs += ' ' + name + '=' + JSON.stringify(value)
-
-						return attrs
-					},
-					''
-				) +
-				`>` +
-				html.closing
-			)
-		}
-
-		setHTML()
-
-		globalThis.addEventListener('message', ({ data }) => {
-			data = Object(data)
-
-			switch (data.action) {
-				case 'NOTIFY_ATTRIBUTE': {
-					const [ param ] = data.params
-					html.attributes[param.name] = param.value
-					setHTML()
-				} break
-			}
-		})
-	}
-}
 </script>
 <script>
 {
@@ -288,50 +246,6 @@ globalThis.addEventListener('message', ({ data }) => {
 	}
 }
 
-{
-	const query = '.c-code .x-html'
-	for (const codeElement of document.querySelectorAll<HTMLElement>(query)) {
-		let { tag } = codeElement.dataset
-
-		let html = {
-			opening: `<${tag}`,
-			attributes: {},
-			closing: `</${tag}>`,
-		}
-
-		let setHTML = () => {
-			codeElement.textContent = (
-				html.opening +
-				Object.entries(html.attributes).reduce(
-					(attrs, [ name, value ]) => {
-						if (value === null) return attrs
-						else if (value === '') attrs += ' ' + name
-						else attrs += ' ' + name + '=' + JSON.stringify(value)
-
-						return attrs
-					},
-					''
-				) +
-				`>` +
-				html.closing
-			)
-		}
-
-		setHTML()
-
-		globalThis.addEventListener('message', ({ data }) => {
-			data = Object(data)
-
-			switch (data.action) {
-				case 'NOTIFY_ATTRIBUTE': {
-					const [ param ] = data.params
-					html.attributes[param.name] = param.value
-					setHTML()
-				} break
-			}
-		})
-	}
-}
 </script>
 <script>
 {
@@ -373,10 +287,6 @@ globalThis.addEventListener('message', ({ data }) => {
 .c-code {
 	/* Layout */
 	margin-block: 0;
-
-	/* Appearance */
-	color: transparent;
-	caret-color: hsl(0 0% 0%);
 }
 
 .c-code > code {
@@ -385,9 +295,6 @@ globalThis.addEventListener('message', ({ data }) => {
 	/* Layout */
 	padding-block: 1em;
 	padding-inline: 1.5em;
-
-	/* Text */
-	color: hsl(0 0% 0%);
 }
 </style>
 <style is:global>

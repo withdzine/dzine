@@ -3,6 +3,97 @@
 	const { prototype } = CustomElementRegistry
 	const { define } = prototype
 	const { stringify } = JSON
+	const templateElement = document.createElement('template')
+
+	let roll = (
+		host,
+		patches
+	) => () => {
+		for (let patch of patches) patch(host)
+	}
+
+	let noop = () => {}
+
+	let diffNode = (
+		host,
+		diff,
+		context = new DocumentFragment()
+	) => (
+		!host && !diff
+			? noop
+		: !host
+			? () => context.append(diff.cloneNode(true))
+		: !diff
+			? () => host.remove()
+		: host.nodeType === diff.nodeType && host.nodeName === diff.nodeName
+			? host.nodeType === 1
+				? roll(host, [
+					diffAttrs(host, diff),
+					diffTree(host, diff),
+				])
+			: host.nodeValue === diff.nodeValue
+				? noop
+			: () => {
+				host.nodeValue = diff.nodeValue
+			}
+		: () => (host).replaceWith(diff)
+	)
+
+	let diffAttrs = (
+		host,
+		diff
+	) => {
+		let patches = []
+		let removed = new Map()
+
+		for (let { name, value } of host.attributes) {
+			removed.set(name, value)
+		}
+
+		for (let { name, value } of diff.attributes) {
+			let olden = removed.get(name)
+
+			if (value === olden) {
+				removed.delete(name)
+			} else if (olden === undefined) {
+				removed.delete(name)
+
+				patches.push(() => host.setAttribute(name, value))
+			} else {
+				patches.push(() => host.setAttribute(name, value))
+			}
+		}
+
+		for (let [ name ] of removed) {
+			patches.push(() => host.removeAttribute(name))
+		}
+
+		return roll(host, patches)
+	}
+
+	let diffNodes = (
+		hostNodes,
+		diffNodes,
+		context
+	) => {
+		let patches = []
+		let index = -1
+		let count = Math.max(hostNodes.length, diffNodes.length)
+		let patch
+
+		while (++index < count) {
+			patch = diffNode(hostNodes[index], diffNodes[index], context)
+
+			if (patch !== noop) patches.push(patch)
+		}
+
+		return roll(context, patches)
+	}
+
+	let diffTree = (
+		host,
+		diff
+	) => diffNodes(host.childNodes, diff.childNodes, host)
 
 	Object.defineProperty(prototype, 'define', {
 		configurable: true,
@@ -33,11 +124,6 @@
 										},
 									],
 								})
-
-								// globalThis.postMessage({
-								// 	action: 'LIST_TOKENS',
-								// 	params: [],
-								// })
 							}
 
 							return returnState
@@ -67,11 +153,19 @@
 							},
 						],
 					})
+				}
+			} else {
+				upmostThis.postMessage({
+					action: 'NOTIFY_HTML',
+					params: [
+						{
+							value: document.body.innerHTML.trim(),
+						},
+					],
+				})
 
-					// globalThis.postMessage({
-					// 	action: 'LIST_TOKENS',
-					// 	params: [],
-					// })
+				for (const notDefined of document.querySelectorAll(':not(:defined)')) {
+					import(`/dzine/prototype/${notDefined.localName}/define.js`)
 				}
 			}
 		}
@@ -83,7 +177,8 @@
 		switch (data.action) {
 			case 'SET_PROPERTY':
 			case 'SET_ATTRIBUTE':
-			case 'SET_CSS_STATE': {
+			case 'SET_CSS_STATE':
+			case 'SET_HTML': {
 				globalThis.postMessage(data)
 			} break
 		}
@@ -185,14 +280,33 @@
 					params: [{}],
 				})
 			} break
+
+			case 'SET_HTML': {
+				templateElement.innerHTML = param.value
+
+				const matchingElement = templateElement.content.querySelector(param.tag)
+
+				if (!matchingElement) return
+
+				try {
+					diffNode(element, matchingElement, element.parentNode)()
+				} catch {
+					// do nothing and continue
+				}
+			} break
 		}
 	})
 
-
 	const updateSheet = () => {
 		const tokens = new Set()
+		let elements = []
 
 		for (let element of document.body.children) {
+			const { shadowRoot } = element
+			if (shadowRoot) {
+				elements = shadowRoot.querySelectorAll('*')
+			}
+
 			for (const sheet of getShadowSheets(element)) {
 				iterateCSSRules(sheet, (cssRule) => {
 					for (const key of cssRule.style) {
@@ -227,6 +341,4 @@
 			updateSheet()
 		}
 	})
-
-	// new MutationObserver(updateSheet).observe(document.body, { childList: true })
 }
